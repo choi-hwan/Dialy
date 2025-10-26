@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # requirements.txt 복사 및 의존성 설치
-COPY requirements.txt .
+COPY requirements.txt /app/
 
 # PyTorch CPU 버전 설치 (GPU 버전이 필요한 경우 수정 필요)
 RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 애플리케이션 코드 복사
-COPY app/ ./app/
+COPY . /app
 
 # 데이터베이스 디렉토리 생성
 RUN mkdir -p /app/data
