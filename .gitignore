@@ -49,3 +49,4 @@ diary.db.backup
 # OS
 .DS_Store
 Thumbs.db
+.claude/
