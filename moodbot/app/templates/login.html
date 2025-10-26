@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}로그인{% endblock %}
+{% block content %}
+<section>
+    <h2>로그인</h2>
+    {% if error %}
+    <div style="background-color: #fee2e2; border-left: 4px solid #ef4444; padding: 12px; margin-bottom: 16px; border-radius: 4px;">
+        <p style="margin: 0; color: #991b1b;">{{ error }}</p>
+    </div>
+    {% endif %}
+    <form method="post" action="/login">
+        <div style="margin-bottom: 1rem;">
+            <label for="username" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">사용자 이름</label>
+            <input type="text" id="username" name="username" required
+                style="width:100%; padding:0.75rem; border-radius:0.5rem; border:1px solid #d1d5db;">
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label for="password" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">비밀번호</label>
+            <input type="password" id="password" name="password" required
+                style="width:100%; padding:0.75rem; border-radius:0.5rem; border:1px solid #d1d5db;">
+        </div>
+        <button type="submit" class="btn">로그인</button>
+    </form>
+    <p style="margin-top: 1rem;">
+        계정이 없으신가요? <a href="/register" style="color: #3b82f6; text-decoration: none; font-weight: 600;">회원가입</a>
+    </p>
+</section>
+{% endblock %}

@@ -1,0 +1,22 @@
+# FastAPI 및 서버
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic[email]>=2.0.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.6
+jinja2>=3.1.0
+httpx>=0.25.0
+python-jose[cryptography]>=3.3.0
+pyjwt>=2.8.0
+passlib[bcrypt]>=1.7.4
+python-dotenv>=1.0.0
+email-validator>=2.0.0
+
+# AI/ML 라이브러리
+transformers>=4.44.0
+accelerate>=0.33.0
+bitsandbytes; platform_system != "Windows"
+bitsandbytes-windows; platform_system == "Windows"
+huggingface-hub>=0.23.0
+sentencepiece
+torch>=2.3.0

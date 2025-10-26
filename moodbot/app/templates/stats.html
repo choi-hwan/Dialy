@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}감정 통계{% endblock %}
+{% block content %}
+<section>
+    <h2>감정 통계</h2>
+    <p>총 {{ total_entries }}개의 일기를 분석했어요.</p>
+    <div style="display:flex; gap:1rem;">
+        <div class="entry-card" style="flex:1;">
+            <h3>긍정</h3>
+            <p style="font-size:2rem;">{{ sentiment_counts.get("긍정", 0) }}</p>
+        </div>
+        <div class="entry-card" style="flex:1;">
+            <h3>중립</h3>
+            <p style="font-size:2rem;">{{ sentiment_counts.get("중립", 0) }}</p>
+        </div>
+        <div class="entry-card" style="flex:1;">
+            <h3>부정</h3>
+            <p style="font-size:2rem;">{{ sentiment_counts.get("부정", 0) }}</p>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>최근 기록</h2>
+    <p><a href="/entries" class="btn">기록 모아보기</a></p>
+</section>
+{% endblock %}

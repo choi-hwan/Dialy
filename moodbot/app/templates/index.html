@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}오늘 기분 요약{% endblock %}
+{% block content %}
+<section>
+    <h2>오늘 하루는 어떠셨나요?</h2>
+    <p>일기를 입력하면 AI가 한 줄 요약과 감정 분석을 제공해요.</p>
+    <form method="post" action="/entries">
+        <textarea name="text" rows="5" placeholder="오늘의 일기를 적어주세요..." required style="width:100%; padding:1rem; border-radius:0.75rem; border:1px solid #d1d5db; margin:1rem 0;"></textarea>
+        <button type="submit" class="btn">감정 분석하기</button>
+    </form>
+</section>
+
+{% if entries %}
+<section>
+    <h2>최근 요약</h2>
+    {% for entry in entries %}
+    <div class="entry-card">
+        <p><strong>{{ entry.summary }}</strong> <small style="color:#6b7280;">({{ entry.created_at.strftime("%Y-%m-%d %H:%M") }})</small></p>
+        <p>{{ entry.text }}</p>
+        <p>감정: <strong>{{ entry.sentiment.label }}</strong> ({{ "%.2f"|format(entry.sentiment.score) }})</p>
+        <p>
+            {% for tag in entry.tags %}
+            <span class="tag">#{{ tag }}</span>
+            {% endfor %}
+        </p>
+    </div>
+    {% endfor %}
+</section>
+{% else %}
+<p>아직 작성된 일기가 없어요. 첫 기록을 남겨보세요!</p>
+{% endif %}
+
+<section>
+    <h2>감정 한눈에 보기</h2>
+    <ul>
+        <li>긍정: {{ stats.get("긍정", 0) }}회</li>
+        <li>중립: {{ stats.get("중립", 0) }}회</li>
+        <li>부정: {{ stats.get("부정", 0) }}회</li>
+    </ul>
+</section>
+{% endblock %}

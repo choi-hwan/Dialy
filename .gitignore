@@ -1,0 +1,51 @@
+# 환경 변수 파일 (절대 커밋하지 마세요!)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 가상환경
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 데이터베이스
+*.db
+*.sqlite
+*.sqlite3
+diary.db
+diary.db.backup
+
+# 로그
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,7 @@
+/* Custom styles for MoodBot */
+body { line-height: 1.6; }
+h2 { font-size: 1.4rem; margin-bottom: 0.6rem; }
+h3 { font-size: 1.1rem; margin-bottom: 0.4rem; color: #2563eb; }
+form textarea:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
+button.btn:hover, a.btn:hover { background: #1d4ed8; }
+

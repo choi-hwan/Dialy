@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}일기 기록{% endblock %}
+{% block content %}
+<section>
+    <h2>전체 기록</h2>
+    {% if entries %}
+        {% for entry in entries %}
+        <div class="entry-card">
+            <p><strong>{{ entry.summary }}</strong> <small style="color:#6b7280;">({{ entry.created_at.strftime("%Y-%m-%d %H:%M") }})</small></p>
+            <p>{{ entry.text }}</p>
+            <p>감정: <strong>{{ entry.sentiment.label }}</strong> ({{ "%.2f"|format(entry.sentiment.score) }})</p>
+            <p>
+                {% for tag in entry.tags %}
+                <span class="tag">#{{ tag }}</span>
+                {% endfor %}
+            </p>
+            <!-- AI 코멘트 (디버깅: 항상 표시) -->
+            <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 12px; margin-top: 12px; border-radius: 4px;">
+                <p style="margin: 0; color: #1e40af; font-style: italic;">
+                    <strong>💬 AI:</strong> {{ entry.comfort_message if entry.comfort_message else "[AI 코멘트 없음]" }}
+                </p>
+            </div>
+
+            <!-- 대화 목록 -->
+            {% if entry.conversations %}
+            <div style="margin-top: 16px; padding: 12px; background-color: #f9fafb; border-radius: 4px;">
+                <h4 style="margin: 0 0 12px 0; font-size: 0.9rem; color: #6b7280;">대화 기록</h4>
+                {% for conv in entry.conversations %}
+                <div style="margin-bottom: 8px; padding: 8px; background-color: {% if conv.role == 'user' %}#e0f2fe{% else %}#f0f9ff{% endif %}; border-radius: 4px;">
+                    <strong style="color: {% if conv.role == 'user' %}#0369a1{% else %}#1e40af{% endif %};">
+                        {% if conv.role == 'user' %}👤 나:{% else %}💬 AI:{% endif %}
+                    </strong>
+                    <span style="color: #374151;">{{ conv.message }}</span>
+                    <small style="color: #9ca3af; display: block; margin-top: 4px;">{{ conv.timestamp.strftime("%Y-%m-%d %H:%M") }}</small>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- AI에 응답하기 폼 -->
+            <form method="post" action="/entries/{{ entry.id }}/reply" style="margin-top: 12px;" onsubmit="return handleReplySubmit(this);">
+                <textarea name="message" rows="2" placeholder="AI에게 답장하기..." required
+                    style="width:100%; padding:0.75rem; border-radius:0.5rem; border:1px solid #d1d5db; resize: vertical;"></textarea>
+                <div style="margin-top: 8px; display: flex; gap: 8px; align-items: center;">
+                    <button type="submit" class="btn reply-btn" style="padding: 0.5rem 1rem; font-size: 0.875rem;">답장 보내기</button>
+                    <button type="button" class="btn delete-btn" onclick="deleteEntry({{ entry.id }})"
+                        style="padding: 0.5rem 1rem; font-size: 0.875rem; background-color: #ef4444; border: none; color: white; cursor: pointer; border-radius: 0.5rem;">
+                        🗑️ 삭제
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>아직 저장된 기록이 없어요.</p>
+    {% endif %}
+</section>
+
+<script>
+function handleReplySubmit(form) {
+    // 제출 버튼 찾기
+    const submitBtn = form.querySelector('.reply-btn');
+
+    // 이미 제출 중이면 중복 제출 방지
+    if (submitBtn.disabled) {
+        return false;
+    }
+
+    // 버튼 비활성화 및 텍스트 변경
+    submitBtn.disabled = true;
+    submitBtn.textContent = '전송 중...';
+    submitBtn.style.opacity = '0.6';
+    submitBtn.style.cursor = 'not-allowed';
+
+    // 폼 제출 허용
+    return true;
+}
+
+function deleteEntry(entryId) {
+    // 확인 메시지 표시
+    if (confirm('정말로 이 일기를 삭제하시겠습니까? 삭제된 일기는 복구할 수 없습니다.')) {
+        // 삭제 폼을 동적으로 생성하여 제출
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/entries/' + entryId + '/delete';
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

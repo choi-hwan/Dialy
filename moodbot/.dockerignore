@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# 데이터베이스
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+diary.db.backup
+
+# 캐시
+.cache/
+.huggingface/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 로그
+*.log
+
+# 테스트
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# 기타
+README.md
+.env.example
