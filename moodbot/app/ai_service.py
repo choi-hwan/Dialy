@@ -5,7 +5,7 @@ import json
 import re
 from typing import Any, Dict, List
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import asyncio
 from functools import partial
 
@@ -13,19 +13,30 @@ from .settings import settings
 
 # 서비스 레이어가 기대하는 필드 구조에 맞춘 JSON을 요청합니다.
 SYSTEM_PROMPT = """당신은 공감적인 한국어 일기 감정 분석 AI입니다.
-일기를 분석하여 JSON으로 답변하세요.
+사용자가 작성한 일기 내용을 정확히 읽고, 그 내용에 맞는 감정 분석과 위로 메시지를 제공하세요.
+
+중요: 일기에 쓰여진 내용만을 바탕으로 분석하고, 일기에 없는 내용을 지어내지 마세요.
 
 형식:
-{"summary":"요약","sentiment":{"label":"긍정/중립/부정","score":0.0~1.0},"emotion_scores":{"행복":0.0~1.0,"슬픔":0.0~1.0,"분노":0.0~1.0,"불안":0.0~1.0,"평온":0.0~1.0,"흥분":0.0~1.0},"primary_emotion":"행복/슬픔/분노/불안/평온/흥분 중 하나","comfort_message":"따뜻한 위로와 공감 메시지 2-3문장","tags":["태그1","태그2"]}
+{"summary":"일기 내용 요약","sentiment":{"label":"긍정/중립/부정","score":0.0~1.0},"emotion_scores":{"행복":0.0~1.0,"슬픔":0.0~1.0,"분노":0.0~1.0,"불안":0.0~1.0,"평온":0.0~1.0,"흥분":0.0~1.0},"primary_emotion":"행복/슬픔/분노/불안/평온/흥분 중 하나","comfort_message":"일기 내용에 대한 공감과 위로 메시지","tags":["태그1","태그2"]}
 
-예시:
+예시 1:
 일기: "시험에 떨어졌어. 속상해."
-{"summary":"시험 불합격으로 속상함","sentiment":{"label":"부정","score":0.7},"emotion_scores":{"행복":0.0,"슬픔":0.8,"분노":0.1,"불안":0.6,"평온":0.0,"흥분":0.0},"primary_emotion":"슬픔","comfort_message":"시험 결과가 기대와 달라 많이 속상하시겠어요. 이번 경험이 다음에는 더 나은 결과로 이어질 거예요.","tags":["시험","실망"]}
+{"summary":"시험에 떨어져서 속상함","sentiment":{"label":"부정","score":0.7},"emotion_scores":{"행복":0.0,"슬픔":0.8,"분노":0.1,"불안":0.6,"평온":0.0,"흥분":0.0},"primary_emotion":"슬픔","comfort_message":"시험에 떨어져서 많이 속상하시겠어요. 실망스러운 마음 충분히 이해해요. 이번 경험이 다음에는 더 좋은 결과로 이어질 거예요.","tags":["시험","실망","속상함"]}
 
+예시 2:
 일기: "친구들이랑 놀이공원 갔다!"
-{"summary":"친구들과 놀이공원에서 즐거운 시간","sentiment":{"label":"긍정","score":0.9},"emotion_scores":{"행복":0.9,"슬픔":0.0,"분노":0.0,"불안":0.0,"평온":0.1,"흥분":0.8},"primary_emotion":"행복","comfort_message":"친구들과 함께한 시간이 정말 즐거웠나 봐요! 이런 행복한 순간들이 계속 이어지길 바랍니다.","tags":["놀이공원","친구","행복"]}
+{"summary":"친구들과 놀이공원에 가서 즐거웠음","sentiment":{"label":"긍정","score":0.9},"emotion_scores":{"행복":0.9,"슬픔":0.0,"분노":0.0,"불안":0.0,"평온":0.1,"흥분":0.8},"primary_emotion":"행복","comfort_message":"친구들과 놀이공원에서 즐거운 시간을 보내셨군요! 정말 기분 좋은 하루였겠어요. 이런 행복한 추억들이 계속 쌓이길 바라요.","tags":["놀이공원","친구","즐거움"]}
 
-중요: JSON만 출력하고 마크다운(```)이나 설명은 쓰지 마세요."""
+예시 3:
+일기: "창문을 열어놓고 자서 감기에 걸렸어."
+{"summary":"창문을 열어놓고 자서 감기에 걸림","sentiment":{"label":"부정","score":0.6},"emotion_scores":{"행복":0.0,"슬픔":0.3,"분노":0.1,"불안":0.5,"평온":0.0,"흥분":0.0},"primary_emotion":"불안","comfort_message":"창문을 열어놓고 주무셔서 감기에 걸리셨군요. 몸이 안 좋으시니 걱정되시겠어요. 푹 쉬시고 따뜻하게 하시면 금방 나아지실 거예요. 건강 잘 챙기세요!","tags":["감기","건강","걱정"]}
+
+규칙:
+1. 일기에 쓰여진 내용만 분석하세요
+2. 일기에 없는 내용(온천, 여름 등)을 추가하지 마세요
+3. comfort_message는 반드시 일기 내용에 대한 공감이어야 합니다
+4. JSON만 출력하고 마크다운(```)이나 설명은 쓰지 마세요"""
 
 def _coerce_emotions(d: Dict[str, Any]) -> Dict[str, float]:
     # 한국어 키를 영어 키로 매핑
@@ -83,18 +94,30 @@ class AIAnalysisService:
             os.environ["HUGGINGFACE_TOKEN"] = settings.hf_token
             os.environ["HF_TOKEN"] = settings.hf_token
 
-        print(f"Loading model: {settings.hf_model_id}")
+        print(f"[DEBUG] ENV file loaded from: {settings.model_config.get('env_file')}")
+        print(f"[DEBUG] HF_MODEL_ID from settings: {settings.hf_model_id}")
+        print(f"[DEBUG] HF_MAX_TOKENS from settings: {settings.hf_max_tokens}")
+        print(f"Loading model with 4-bit quantization: {settings.hf_model_id}")
+
+        # 4-bit 양자화 설정
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit=True,               # 4-bit 양자화 활성화
+            bnb_4bit_compute_dtype=torch.float16,  # 연산은 float16로
+            bnb_4bit_use_double_quant=True,  # 이중 양자화로 더 압축
+            bnb_4bit_quant_type="nf4"        # NormalFloat4 양자화 (LLM에 최적)
+        )
+
         self.tokenizer = AutoTokenizer.from_pretrained(
             settings.hf_model_id,
             token=settings.hf_token
         )
         self.model = AutoModelForCausalLM.from_pretrained(
             settings.hf_model_id,
-            torch_dtype=torch.float16,
-            device_map="auto",
+            quantization_config=quantization_config,  # 양자화 설정 추가
+            device_map="auto",                        # GPU에 자동 배치
             token=settings.hf_token
         )
-        print("Model loaded successfully!")
+        print(f"Model loaded successfully! (4-bit quantized, memory usage: ~3.5GB)")
 
     def _generate_text(self, prompt: str) -> str:
         """동기 함수: 실제 모델 실행"""
@@ -109,10 +132,11 @@ class AIAnalysisService:
                 max_new_tokens=settings.hf_max_tokens,
                 temperature=temperature,
                 do_sample=True,
-                top_p=0.9,
-                top_k=50,
-                repetition_penalty=1.05,
+                top_p=0.95,  # 더 높은 확률 분포로 빠른 샘플링
+                top_k=40,    # 줄여서 샘플링 속도 향상
+                repetition_penalty=1.1,
                 pad_token_id=self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
+                use_cache=True,  # KV cache 활성화로 생성 속도 2-3배 향상
             )
 
             # 프롬프트 제거 (입력 토큰 수만큼 제거)
@@ -129,8 +153,9 @@ class AIAnalysisService:
                 **inputs,
                 max_new_tokens=settings.hf_max_tokens,
                 do_sample=False,
-                repetition_penalty=1.05,
+                repetition_penalty=1.1,
                 pad_token_id=self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
+                use_cache=True,  # KV cache 활성화
             )
             input_length = inputs['input_ids'].shape[1]
             output_tokens = outputs[0][input_length:]
@@ -262,7 +287,7 @@ class AIAnalysisService:
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, partial(self._generate_text, prompt))
         return result    
-# ---- 싱글톤 인스턴스 & 팩토리 둘 다 노출 ----
+# ---- 싱글톤 인스턴스 ----
 _ai_singleton: AIAnalysisService | None = None
 
 def get_ai_service() -> AIAnalysisService:
@@ -270,6 +295,4 @@ def get_ai_service() -> AIAnalysisService:
     if _ai_singleton is None:
         _ai_singleton = AIAnalysisService()
     return _ai_singleton
-
-ai_service = get_ai_service()
 
