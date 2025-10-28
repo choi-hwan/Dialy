@@ -1,0 +1,15 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[build.buildArgs]
+HF_TOKEN = "${{HF_TOKEN}}"
+HF_MODEL_ID = "${{HF_MODEL_ID}}"
+HF_MAX_TOKENS = "${{HF_MAX_TOKENS}}"
+HF_TEMPERATURE = "${{HF_TEMPERATURE}}"
+HF_TIMEOUT = "${{HF_TIMEOUT}}"
+ENV = "${{ENV}}"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
