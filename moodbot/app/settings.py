@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     # ==== Hugging Face ====
-    hf_token: str = Field(..., validation_alias="HF_TOKEN")
+    hf_token: str = Field(default="", validation_alias="HF_TOKEN")
     hf_model_id: str = Field("skt/A.X-3.1-Light", validation_alias="HF_MODEL_ID")
     hf_timeout: int = Field(30, validation_alias="HF_TIMEOUT")
     hf_max_tokens: int = Field(512, validation_alias="HF_MAX_TOKENS")
