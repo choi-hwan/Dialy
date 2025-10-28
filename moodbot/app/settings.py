@@ -54,8 +54,12 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def check_hf_token(self):
+        import os
+        # 디버깅: 환경변수 확인
+        print(f"DEBUG: Environment HF_TOKEN = {os.environ.get('HF_TOKEN', 'NOT SET')[:20]}...")
+        print(f"DEBUG: Loaded hf_token = {self.hf_token[:20] if self.hf_token else 'EMPTY'}...")
+
         # Railway 등 클라우드 환경에서는 환경변수로 설정됨
-        # 빌드 시점에는 비어있을 수 있으므로 경고만 출력
         if not self.hf_token:
             print("WARNING: HF_TOKEN is empty. Please set it in environment variables.")
         return self
