@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     env: str = Field("dev", validation_alias="ENV")
 
     model_config = SettingsConfigDict(
-        env_file=str(BASE_DIR / ".env"),
+        env_file=str(BASE_DIR / ".env") if (BASE_DIR / ".env").exists() else None,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
