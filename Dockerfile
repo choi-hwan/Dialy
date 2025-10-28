@@ -29,9 +29,23 @@ RUN mkdir -p /app/data
 # 포트 노출
 EXPOSE 8000
 
+# 빌드 인자로 환경변수 받기
+ARG HF_TOKEN
+ARG HF_MODEL_ID=skt/A.X-3.1-Light
+ARG HF_MAX_TOKENS=512
+ARG HF_TEMPERATURE=0.7
+ARG HF_TIMEOUT=30
+ARG ENV=dev
+
 # 환경 변수 설정
 ENV PYTHONUNBUFFERED=1
 ENV HF_HOME=/app/.cache/huggingface
+ENV HF_TOKEN=${HF_TOKEN}
+ENV HF_MODEL_ID=${HF_MODEL_ID}
+ENV HF_MAX_TOKENS=${HF_MAX_TOKENS}
+ENV HF_TEMPERATURE=${HF_TEMPERATURE}
+ENV HF_TIMEOUT=${HF_TIMEOUT}
+ENV ENV=${ENV}
 
 # 헬스체크 추가
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
