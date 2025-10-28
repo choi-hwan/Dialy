@@ -54,8 +54,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def check_hf_token(self):
+        # Railway 등 클라우드 환경에서는 환경변수로 설정됨
+        # 빌드 시점에는 비어있을 수 있으므로 경고만 출력
         if not self.hf_token:
-            raise ValueError("HF_TOKEN이 비어 있습니다. 루트 .env에 HF_TOKEN을 설정하세요.")
+            print("WARNING: HF_TOKEN is empty. Please set it in environment variables.")
         return self
 
     @model_validator(mode="after")
