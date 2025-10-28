@@ -4,7 +4,9 @@
 <section>
     <h2>감정 통계</h2>
     <p>총 {{ total_entries }}개의 일기를 분석했어요.</p>
-    <div style="display:flex; gap:1rem;">
+
+    <!-- 감정 레이블 카드 -->
+    <div style="display:flex; gap:1rem; margin-bottom: 2rem;">
         <div class="entry-card" style="flex:1;">
             <h3>긍정</h3>
             <p style="font-size:2rem;">{{ sentiment_counts.get("긍정", 0) }}</p>
@@ -18,10 +20,301 @@
             <p style="font-size:2rem;">{{ sentiment_counts.get("부정", 0) }}</p>
         </div>
     </div>
+
+    <!-- 시간대별 감정 변화 라인 차트 (전체 너비) -->
+    {% if timeline_data|length > 0 %}
+    <div class="entry-card" style="margin-top: 2rem;">
+        <h3 style="margin-bottom: 1rem;">최근 감정 변화 추이 (최대 7개)</h3>
+        <div style="position: relative; height: 350px;">
+            <canvas id="timelineChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 차트 섹션 -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+        <!-- 감정 레이블 파이 차트 -->
+        <div class="entry-card">
+            <h3 style="margin-bottom: 1rem;">감정 레이블 분포</h3>
+            <div style="position: relative; height: 300px;">
+                <canvas id="sentimentPieChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 감정 점수 바 차트 -->
+        <div class="entry-card">
+            <h3 style="margin-bottom: 1rem;">평균 감정 점수</h3>
+            <div style="position: relative; height: 300px;">
+                <canvas id="emotionBarChart"></canvas>
+            </div>
+        </div>
+    </div>
 </section>
 
-<section>
+<section style="margin-top: 2rem;">
     <h2>최근 기록</h2>
     <p><a href="/entries" class="btn">기록 모아보기</a></p>
 </section>
+
+<!-- Chart.js 라이브러리 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+    // 시간대별 감정 변화 라인 차트 (주요 감정 점수만 표시)
+    {% if timeline_data|length > 0 %}
+    const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+
+    // 각 포인트의 배경색 설정 (감정에 따라)
+    const emotionColors = {
+        '행복': 'rgba(250, 204, 21, 1)',
+        '슬픔': 'rgba(59, 130, 246, 1)',
+        '분노': 'rgba(239, 68, 68, 1)',
+        '불안': 'rgba(168, 85, 247, 1)',
+        '평온': 'rgba(34, 197, 94, 1)',
+        '흥분': 'rgba(249, 115, 22, 1)',
+        '중립': 'rgba(156, 163, 175, 1)'  // 회색
+    };
+
+    const sentiments = [
+        {% for entry in timeline_data %}
+            '{{ entry.sentiment }}'{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const primaryEmotions = [
+        {% for entry in timeline_data %}
+            '{{ entry.primary_emotion }}'{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const pointBackgroundColors = sentiments.map((sentiment, index) => {
+        // 중립이면 회색, 아니면 primary_emotion 색상
+        if (sentiment === '중립') {
+            return emotionColors['중립'];
+        }
+        return emotionColors[primaryEmotions[index]];
+    });
+
+    const timelineChartData = {
+        labels: [
+            {% for entry in timeline_data %}
+                '{{ entry.date }}'{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [
+            {
+                label: '주요 감정 점수',
+                data: [{% for entry in timeline_data %}{{ entry.primary_score }}{% if not loop.last %},{% endif %}{% endfor %}],
+                borderColor: 'rgba(37, 99, 235, 1)',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                pointBackgroundColor: pointBackgroundColors,
+                pointBorderColor: pointBackgroundColors,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true
+            }
+        ]
+    };
+
+    new Chart(timelineCtx, {
+        type: 'line',
+        data: timelineChartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                y: {
+                    min: -1,
+                    max: 1,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(1);
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: '감정 점수 (긍정 ↑ / 부정 ↓)'
+                    },
+                    grid: {
+                        color: function(context) {
+                            // 0선을 진하게 표시
+                            if (context.tick.value === 0) {
+                                return 'rgba(0, 0, 0, 0.3)';
+                            }
+                            return 'rgba(0, 0, 0, 0.1)';
+                        },
+                        lineWidth: function(context) {
+                            if (context.tick.value === 0) {
+                                return 2;
+                            }
+                            return 1;
+                        }
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: '작성 시간'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            const index = context[0].dataIndex;
+                            // 중립이면 "중립", 아니면 primary_emotion 표시
+                            const displayEmotion = sentiments[index] === '중립'
+                                ? '중립'
+                                : primaryEmotions[index];
+                            return context[0].label + ' - ' + displayEmotion;
+                        },
+                        label: function(context) {
+                            return '점수: ' + context.parsed.y.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    // 감정 레이블 파이 차트
+    const sentimentCtx = document.getElementById('sentimentPieChart').getContext('2d');
+    const sentimentData = {
+        labels: ['긍정', '중립', '부정'],
+        datasets: [{
+            data: [
+                {{ sentiment_counts.get("긍정", 0) }},
+                {{ sentiment_counts.get("중립", 0) }},
+                {{ sentiment_counts.get("부정", 0) }}
+            ],
+            backgroundColor: [
+                'rgba(34, 197, 94, 0.8)',   // 긍정 - 녹색
+                'rgba(156, 163, 175, 0.8)', // 중립 - 회색
+                'rgba(239, 68, 68, 0.8)'    // 부정 - 빨강
+            ],
+            borderColor: [
+                'rgba(34, 197, 94, 1)',
+                'rgba(156, 163, 175, 1)',
+                'rgba(239, 68, 68, 1)'
+            ],
+            borderWidth: 2
+        }]
+    };
+
+    new Chart(sentimentCtx, {
+        type: 'pie',
+        data: sentimentData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        font: { size: 14 },
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return label + ': ' + value + '개 (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 감정 점수 바 차트
+    const emotionCtx = document.getElementById('emotionBarChart').getContext('2d');
+    const emotionData = {
+        labels: ['행복', '슬픔', '분노', '불안', '평온', '흥분'],
+        datasets: [{
+            label: '평균 점수',
+            data: [
+                {{ emotion_distribution.get("happiness", 0) }},
+                {{ emotion_distribution.get("sadness", 0) }},
+                {{ emotion_distribution.get("anger", 0) }},
+                {{ emotion_distribution.get("anxiety", 0) }},
+                {{ emotion_distribution.get("calmness", 0) }},
+                {{ emotion_distribution.get("excitement", 0) }}
+            ],
+            backgroundColor: [
+                'rgba(250, 204, 21, 0.8)',  // 행복 - 노랑
+                'rgba(59, 130, 246, 0.8)',  // 슬픔 - 파랑
+                'rgba(239, 68, 68, 0.8)',   // 분노 - 빨강
+                'rgba(168, 85, 247, 0.8)',  // 불안 - 보라
+                'rgba(34, 197, 94, 0.8)',   // 평온 - 녹색
+                'rgba(249, 115, 22, 0.8)'   // 흥분 - 주황
+            ],
+            borderColor: [
+                'rgba(250, 204, 21, 1)',
+                'rgba(59, 130, 246, 1)',
+                'rgba(239, 68, 68, 1)',
+                'rgba(168, 85, 247, 1)',
+                'rgba(34, 197, 94, 1)',
+                'rgba(249, 115, 22, 1)'
+            ],
+            borderWidth: 2
+        }]
+    };
+
+    new Chart(emotionCtx, {
+        type: 'bar',
+        data: emotionData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 1,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(1);
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: '점수 (0.0 ~ 1.0)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: '감정 유형'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '평균: ' + context.parsed.y.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}

@@ -113,13 +113,51 @@ async def stats_page(
 ) -> HTMLResponse:
     user_id = get_user_id_from_cookie(request)
     sentiment_counts = service.sentiment_counts(user_id=user_id)
-    total_entries = len(service.list_entries(user_id=user_id))
+    emotion_distribution = service.emotion_distribution(user_id=user_id)
+    all_entries = service.list_entries(user_id=user_id)
+    total_entries = len(all_entries)
+
+    # 최근 7개 일기 데이터 (시간순)
+    recent_entries = all_entries[:7]
+    timeline_data = []
+    for entry in reversed(recent_entries):  # 오래된 것부터 표시
+        # sentiment가 중립이면 0점으로 설정
+        if entry.sentiment.label == "중립":
+            primary_score = 0.0
+        else:
+            # primary_emotion에 해당하는 점수 가져오기
+            emotion_mapping = {
+                "행복": entry.emotion_scores.happiness,
+                "슬픔": entry.emotion_scores.sadness,
+                "분노": entry.emotion_scores.anger,
+                "불안": entry.emotion_scores.anxiety,
+                "평온": entry.emotion_scores.calmness,
+                "흥분": entry.emotion_scores.excitement,
+            }
+            raw_score = emotion_mapping.get(entry.primary_emotion, 0)
+
+            # 감정을 양수/음수로 변환 (-1.0 ~ 1.0)
+            # 긍정 감정: 양수 (+), 부정 감정: 음수 (-)
+            if entry.primary_emotion in ["행복", "평온", "흥분"]:
+                primary_score = raw_score  # 0.0 ~ 1.0 유지
+            else:  # 슬픔, 분노, 불안
+                primary_score = -raw_score  # -1.0 ~ 0.0
+
+        timeline_data.append({
+            "date": entry.created_at.strftime("%m/%d %H:%M"),
+            "sentiment": entry.sentiment.label,
+            "primary_emotion": entry.primary_emotion,
+            "primary_score": primary_score,
+        })
+
     return templates.TemplateResponse(
         "stats.html",
         {
             "request": request,
             "sentiment_counts": sentiment_counts,
+            "emotion_distribution": emotion_distribution,
             "total_entries": total_entries,
+            "timeline_data": timeline_data,
         },
     )
 
